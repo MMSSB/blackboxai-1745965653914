@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>GlucoTrack - History</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Luxon for date handling -->
+    <script src="https://cdn.jsdelivr.net/npm/luxon@2.0.2/build/global/luxon.min.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Light mode overrides */
+        .light {
+            --tw-bg-opacity: 1;
+            background-color: rgba(249, 250, 251, var(--tw-bg-opacity)) !important; /* gray-50 */
+            color: #111827 !important; /* gray-900 */
+        }
+        .light .bg-white {
+            background-color: #ffffff !important;
+        }
+        .light .text-gray-900 {
+            color: #111827 !important;
+        }
+        .light .text-gray-700 {
+            color: #374151 !important;
+        }
+        .light .border-gray-300 {
+            border-color: #D1D5DB !important;
+        }
+        .light .bg-gray-50 {
+            background-color: #F9FAFB !important;
+        }
+        .light .hover\\:bg-gray-100:hover {
+            background-color: #F3F4F6 !important;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
+    <nav class="bg-white dark:bg-gray-800 shadow-lg sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4">
+            <div class="flex justify-between h-16 items-center">
+                <a href="index.html" class="text-2xl font-bold text-blue-600 dark:text-blue-400 flex items-center">
+                    <i class="fas fa-chart-line mr-2"></i>GlucoTrack
+                </a>
+                <div class="flex space-x-4">
+                    <a href="history.html" class="text-blue-600 dark:text-blue-400 font-semibold border-b-2 border-blue-600 dark:border-blue-400 pb-1">History</a>
+                    <a href="index.html" class="text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400">Dashboard</a>
+                    <a href="settings.html" class="text-gray-600 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400">Settings</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto px-4 py-6">
+        <h1 class="text-3xl font-semibold mb-6 dark:text-white">Glucose History</h1>
+
+        <div class="mb-4 flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
+            <div class="flex space-x-2 items-center">
+                <label for="filterCategory" class="text-gray-700 dark:text-gray-300 font-medium">Filter by Category:</label>
+                <select id="filterCategory" class="rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                    <option value="all">All</option>
+                    <option value="fasting">Fasting</option>
+                    <option value="before-meal">Before Meal</option>
+                    <option value="after-meal">After Meal</option>
+                    <option value="bedtime">Bedtime</option>
+                </select>
+            </div>
+            <div class="flex space-x-2 items-center">
+                <button id="exportCSV" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 flex items-center" title="Export CSV">
+                    <i class="fas fa-file-excel mr-2"></i>Export CSV
+                </button>
+                <button id="exportPDF" class="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 flex items-center">
+                    <i class="fas fa-file-pdf mr-2"></i>Export PDF
+                </button>
+            </div>
+        </div>
+
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700" id="historyTable">
+                <thead class="bg-gray-50 dark:bg-gray-700">
+                    <tr>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer" data-sort="dateTime">Date & Time <i class="fas fa-sort"></i></th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer" data-sort="glucose">Glucose</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer" data-sort="category">Category</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Notes</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700" id="historyTableBody">
+                    <!-- Data rows will be inserted here -->
+                </tbody>
+            </table>
+        </div>
+    </main>
+
+    <script>
+        const storageKey = 'glucoseEntries';
+
+        // Load entries from localStorage
+        function loadEntries() {
+            const entries = JSON.parse(localStorage.getItem(storageKey) || '[]');
+            return entries;
+        }
+
+        // Render table rows
+        function renderTable(entries) {
+            const tbody = document.getElementById('historyTableBody');
+            tbody.innerHTML = '';
+            entries.forEach(entry => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer';
+                tr.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">${new Date(entry.dateTime).toLocaleString()}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">${entry.glucose} mg/dL</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">${entry.category}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-300">${entry.notes || ''}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // Sort entries
+        function sortEntries(entries, key, ascending) {
+            return entries.sort((a, b) => {
+                if (key === 'dateTime') {
+                    return ascending ? new Date(a[key]) - new Date(b[key]) : new Date(b[key]) - new Date(a[key]);
+                } else if (key === 'glucose') {
+                    return ascending ? a[key] - b[key] : b[key] - a[key];
+                } else {
+                    return ascending ? a[key].localeCompare(b[key]) : b[key].localeCompare(a[key]);
+                }
+            });
+        }
+
+        // Filter entries by category
+        function filterEntries(entries, category) {
+            if (category === 'all') return entries;
+            return entries.filter(entry => entry.category === category);
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            let entries = loadEntries();
+            let currentSortKey = 'dateTime';
+            let ascending = false;
+            let currentFilter = 'all';
+
+            function updateTable() {
+                let filtered = filterEntries(entries, currentFilter);
+                let sorted = sortEntries(filtered, currentSortKey, ascending);
+                renderTable(sorted);
+            }
+
+            updateTable();
+
+            // Sorting event
+            document.querySelectorAll('#historyTable thead th[data-sort]').forEach(th => {
+                th.addEventListener('click', () => {
+                    const key = th.getAttribute('data-sort');
+                    if (currentSortKey === key) {
+                        ascending = !ascending;
+                    } else {
+                        currentSortKey = key;
+                        ascending = true;
+                    }
+                    updateTable();
+                });
+            });
+
+            // Filter event
+            document.getElementById('filterCategory').addEventListener('change', (e) => {
+                currentFilter = e.target.value;
+                updateTable();
+            });
+
+            // Export CSV
+            document.getElementById('exportCSV').addEventListener('click', () => {
+                if (!entries.length) {
+                    alert('No data to export');
+                    return;
+                }
+                const csvRows = [];
+                const headers = ['Date & Time', 'Glucose (mg/dL)', 'Category', 'Notes'];
+                csvRows.push(headers.join(','));
+                entries.forEach(entry => {
+                    const row = [
+                        `"${new Date(entry.dateTime).toLocaleString()}"`,
+                        entry.glucose,
+                        `"${entry.category}"`,
+                        `"${entry.notes ? entry.notes.replace(/"/g, '""') : ''}"`
+                    ];
+                    csvRows.push(row.join(','));
+                });
+                const csvString = csvRows.join('\n');
+                const blob = new Blob([csvString], { type: 'text/csv' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `glucose-history-${new Date().toISOString().slice(0,10)}.csv`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+            });
+
+            // Export PDF (custom implementation for history page)
+            document.getElementById('exportPDF').addEventListener('click', () => {
+                const entries = JSON.parse(localStorage.getItem('glucoseEntries') || '[]');
+                if (!entries.length) {
+                    alert('No data to export');
+                    return;
+                }
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF();
+                const pageWidth = pdf.internal.pageSize.getWidth();
+
+                pdf.setFontSize(20);
+                pdf.text('Glucose History Report', pageWidth / 2, 20, { align: 'center' });
+                pdf.setFontSize(12);
+                pdf.text(`Generated on ${new Date().toLocaleString()}`, pageWidth / 2, 30, { align: 'center' });
+
+                pdf.setFontSize(16);
+                pdf.text('Entries', 20, 50);
+
+                const headers = ['Date & Time', 'Glucose (mg/dL)', 'Category', 'Notes'];
+                const columnWidths = [60, 35, 35, 60];
+                let y = 60;
+
+                headers.forEach((header, i) => {
+                    let x = 20;
+                    for (let j = 0; j < i; j++) {
+                        x += columnWidths[j];
+                    }
+                    pdf.text(header, x, y);
+                });
+
+                pdf.setFontSize(12);
+                pdf.setTextColor(31, 41, 55);
+
+                entries.forEach(entry => {
+                    y += 10;
+                    if (y > 280) {
+                        pdf.addPage();
+                        y = 20;
+                    }
+                    const row = [
+                        new Date(entry.dateTime).toLocaleString(),
+                        entry.glucose.toString(),
+                        entry.category,
+                        entry.notes || ''
+                    ];
+                    row.forEach((cell, i) => {
+                        let x = 20;
+                        for (let j = 0; j < i; j++) {
+                            x += columnWidths[j];
+                        }
+                        const truncated = cell.length > 25 ? cell.substring(0, 22) + '...' : cell;
+                        pdf.text(truncated, x, y);
+                    });
+                });
+
+                pdf.save('glucose-history-report.pdf');
+            });
+        });
+    </script>
+</body>
+</html>
